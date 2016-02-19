@@ -57,11 +57,28 @@ int * mergesort( int *arr, int n )
 
 int main( int argc, char **argv )
 {
-	int arrsize = 50;
-	int *buff = malloc( arrsize * sizeof( int ) );
+	FILE *hfile = fopen( argv[ 1 ], "rb" );
 
+	if( hfile == NULL )
+		return printf( "no such file %s", "%s" );
+
+	char buffer[ 1024 ] = { 0 };
+
+	fgets( buffer, sizeof( buffer ), hfile );
+	int arrsize = atoi( buffer );
+	int *buff = malloc( arrsize * sizeof( int ) );
 	for( int it = 0; it < arrsize; ++it )
-		buff[ it ] = rand();
+	{
+		char mini_buff[ 128 ] = { 0 };
+		char c;
+		while( isspace( (c = fgetc( hfile )) ) );
+		for( int it2 = 0; it2 < sizeof( mini_buff ) && !isspace( c ); c = fgetc( hfile ) )
+			mini_buff[ it2++ ] = c;
+
+		buff[ it ] = atoi( mini_buff );
+	}
+
+	fclose( hfile );
 
 	mergesort( buff, arrsize );
 
