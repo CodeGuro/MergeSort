@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <mpi.h>
 
 int * mergesort( int *arr, int n )
 {
@@ -24,28 +25,23 @@ int * mergesort( int *arr, int n )
 
 	int *fhalf = mergesort( arr, k + is_odd );
 	int *shalf = mergesort( arr + k + is_odd, k );
-	
+
 	int *fhalf_end = shalf;
 	int *shalf_end = fhalf + n;
 	int *ptr = buff;
-	do
+
+	while( fhalf < fhalf_end && shalf < shalf_end )
 	{
-		while( fhalf < fhalf_end && shalf < shalf_end )
-		{
-			if( *fhalf < *shalf )
-				*ptr++ = *fhalf++;
-			else
-				*ptr++ = *shalf++;
-		}
+		if( *fhalf < *shalf )
+			*ptr++ = *fhalf++;
+		else
+			*ptr++ = *shalf++;
+	}
 
-		if( fhalf == fhalf_end )
-			while( shalf < shalf_end )
-				*ptr++ = *shalf++;
-		else if( shalf == shalf_end )
-			while( fhalf < fhalf_end )
-				*ptr++ = *fhalf++;
-
-	} while( fhalf < fhalf_end && shalf < shalf_end );
+	while( shalf < shalf_end )
+		*ptr++ = *shalf++;
+	while( fhalf < fhalf_end )
+		*ptr++ = *fhalf++;
 
 	for( int it = 0; it < n; ++it )
 		arr[ it ] = buff[ it ];
@@ -57,6 +53,8 @@ int * mergesort( int *arr, int n )
 
 int main( int argc, char **argv )
 {
+	MPI_Init( &argc, &argv );
+
 	FILE *hfile = fopen( argv[ 1 ], "rb" );
 
 	if( hfile == NULL )
@@ -71,7 +69,7 @@ int main( int argc, char **argv )
 	{
 		char mini_buff[ 128 ] = { 0 };
 		char c;
-		while( isspace( (c = fgetc( hfile )) ) );
+		while( isspace( ( c = fgetc( hfile ) ) ) );
 		for( int it2 = 0; it2 < sizeof( mini_buff ) && !isspace( c ); c = fgetc( hfile ) )
 			mini_buff[ it2++ ] = c;
 
@@ -86,6 +84,8 @@ int main( int argc, char **argv )
 		printf( "%d\n", buff[ it ] );
 
 	free( buff );
+
+	MPI_Finalize();
 
 	return 0;
 }
