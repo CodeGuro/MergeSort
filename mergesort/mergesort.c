@@ -213,7 +213,7 @@ int main( int argc, char **argv )
 	if( rank == 0 )
 	{
 		char *outfilename = argc > 2 ? argv[ 2 ] : "outfile";
-		write_outfile( argv[ 2 ], rec_buff, arrsize );
+		write_outfile( outfilename, rec_buff, arrsize );
 	}
 
 	// clean up
