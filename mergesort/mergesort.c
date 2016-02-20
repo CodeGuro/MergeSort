@@ -7,6 +7,7 @@
 
 // one of the few cases where #defines are OK
 #define TINY_SIZE 128
+#define BAD_SIZE -1
 
 // sorting algorithm of complexity O( nlogn )
 int * mergesort( int *arr, int n )
@@ -107,7 +108,7 @@ int main( int argc, char **argv )
 	MPI_Comm_size( MPI_COMM_WORLD, &comm_size );
 
 	// declarations
-	printf( "this rank is %i and the size is %i\n", rank, comm_size );
+	printf( "Entering proc rank is %i\n", rank );
 	int arrsize = -1;
 	int *rec_buff = NULL;
 	int rec_buff_size = -1;
@@ -116,8 +117,13 @@ int main( int argc, char **argv )
 	{
 		FILE *hfile = fopen( argv[ 1 ], "rb" );
 
-		if( hfile == NULL )
-			return printf( "no such file %s", "%s" );
+		if( hfile == NULL ) // bad file
+		{
+			int placeholder = BAD_SIZE;
+			MPI_Bcast( &placeholder, 1, MPI_INT, 0, MPI_COMM_WORLD );
+			MPI_Finalize();
+			return printf( "no such file %s\n", argv[1] );
+		}
 
 		// read the file for element count and cap the per-proc buffer size
 		char buffer[ TINY_SIZE ] = { 0 };
@@ -160,6 +166,13 @@ int main( int argc, char **argv )
 		// recieve the data size
 		printf( "Entering child rank %i\n", rank );
 		MPI_Bcast( &rec_buff_size, 1, MPI_INT, 0, MPI_COMM_WORLD );
+
+		if( rec_buff_size == BAD_SIZE ) // invalid input filename
+		{
+			MPI_Finalize();
+			return printf( "child rank %i recieved the terminate message\n", rank );
+		}
+
 		printf( "child rank %i recieved the buffer size. It is %i\n", rank, rec_buff_size );
 		rec_buff = malloc( rec_buff_size * sizeof( int ) );
 
@@ -199,7 +212,10 @@ int main( int argc, char **argv )
 
 	// create and write the output file
 	if( rank == 0 )
+	{
+		char *outfilename = argc > 2 ? argv[ 2 ] : "outfile";
 		write_outfile( argv[ 2 ], rec_buff, arrsize );
+	}
 
 	// clean up
 	free( rec_buff );
