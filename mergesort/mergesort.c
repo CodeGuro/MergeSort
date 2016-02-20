@@ -108,7 +108,7 @@ int main( int argc, char **argv )
 	MPI_Comm_size( MPI_COMM_WORLD, &comm_size );
 
 	// declarations
-	printf( "Entering proc rank is %i\n", rank );
+	printf( "Entering proc rank %i\n", rank );
 	int arrsize = -1;
 	int *rec_buff = NULL;
 	int rec_buff_size = -1;
@@ -164,7 +164,6 @@ int main( int argc, char **argv )
 	else // child
 	{
 		// recieve the data size
-		printf( "Entering child rank %i\n", rank );
 		MPI_Bcast( &rec_buff_size, 1, MPI_INT, 0, MPI_COMM_WORLD );
 
 		if( rec_buff_size == BAD_SIZE ) // invalid input filename
