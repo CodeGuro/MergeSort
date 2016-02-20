@@ -9,6 +9,27 @@
 #define TINY_SIZE 128
 #define BAD_SIZE -1
 
+// sorting algorithm of complexity O( n )
+// this function assumes the both buffers of are sorted
+void quick_merge( int *out, int *b1, int n1, int *b2, int n2 )
+{
+	int *b1_end = b1 + n1;
+	int *b2_end = b2 + n2;
+
+	while( b1 < b1_end && b2 < b2_end )
+	{
+		if( *b1 < *b2 )
+			*out++ = *b1++;
+		else
+			*out++ = *b2++;
+	}
+
+	while( b1 < b1_end )
+		*out++ = *b1++;
+	while( b2 < b2_end )
+		*out++ = *b2++;
+}
+
 // sorting algorithm of complexity O( nlogn )
 int * mergesort( int *arr, int n )
 {
@@ -34,22 +55,7 @@ int * mergesort( int *arr, int n )
 	int *fhalf = mergesort( arr, k + is_odd );
 	int *shalf = mergesort( arr + k + is_odd, k );
 
-	int *fhalf_end = shalf;
-	int *shalf_end = fhalf + n;
-	int *ptr = buff;
-
-	while( fhalf < fhalf_end && shalf < shalf_end )
-	{
-		if( *fhalf < *shalf )
-			*ptr++ = *fhalf++;
-		else
-			*ptr++ = *shalf++;
-	}
-
-	while( shalf < shalf_end )
-		*ptr++ = *shalf++;
-	while( fhalf < fhalf_end )
-		*ptr++ = *fhalf++;
+	quick_merge( buff, fhalf, k + is_odd, shalf, k );
 
 	for( int it = 0; it < n; ++it )
 		arr[ it ] = buff[ it ];
@@ -57,27 +63,6 @@ int * mergesort( int *arr, int n )
 	free( buff );
 
 	return arr;
-}
-
-// sorting algorithm of complexity O( n )
-// this function assumes the both buffers of are sorted
-void quick_merge( int *out, int *b1, int *b2, int n )
-{
-	int *b1_end = b1 + n;
-	int *b2_end = b2 + n;
-
-	while( b1 < b1_end && b2 < b2_end )
-	{
-		if( *b1 < *b2 )
-			*out++ = *b1++;
-		else
-			*out++ = *b2++;
-	}
-
-	while( b1 < b1_end )
-		*out++ = *b1++;
-	while( b2 < b2_end )
-		*out++ = *b2++;
 }
 
 // this function writes the output to the specified filename
@@ -146,7 +131,7 @@ int main( int argc, char **argv )
 			buff[ it ] = atoi( buffer );
 		}
 
-		// fill the cap with MAX_INT (to be ignored later)
+		// fill the rest with INT_MAX to be truncated later
 		for( int it = arrsize; it < rec_buff_size * comm_size; ++it )
 			buff[ it ] = INT_MAX;
 		
@@ -188,6 +173,7 @@ int main( int argc, char **argv )
 	{
 		if( rank % (2 * step) )
 		{
+			MPI_Send( &rec_buff_size, 1, MPI_INT, rank - step, 0, MPI_COMM_WORLD ); // send data size
 			MPI_Send( rec_buff, rec_buff_size, MPI_INT, rank - step, 0, MPI_COMM_WORLD ); // send data for merging
 			break; // we are now finished for this proc
 		}
@@ -197,10 +183,20 @@ int main( int argc, char **argv )
 			{
 				// allocate a second buffer to recieve data, and double the buffer size
 				printf( "rank %i is merging from rank %i\n", rank, rank + step );
-				int *second_buff = malloc( rec_buff_size * sizeof( int ) );
-				int *new_rec_buff = malloc( rec_buff_size * 2 * sizeof( int ) );
-				MPI_Recv( second_buff, rec_buff_size, MPI_INT, rank + step, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
-				quick_merge( new_rec_buff, rec_buff, second_buff, rec_buff_size );
+
+				// recieve the incoming buffer size and allocate enough memory for merging
+				int sec_buff_size;
+				MPI_Recv( &sec_buff_size, 1, MPI_INT, rank + step, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+				int *second_buff = malloc( sec_buff_size * sizeof( int ) );
+				int *new_rec_buff = malloc( (rec_buff_size + sec_buff_size) * sizeof( int ) );
+
+				// recieve the buffer
+				MPI_Recv( second_buff, sec_buff_size, MPI_INT, rank + step, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+
+				// merge
+				quick_merge( new_rec_buff, rec_buff, rec_buff_size, second_buff, sec_buff_size );
+
+				// cleanup
 				free( second_buff );
 				free( rec_buff );
 				rec_buff = new_rec_buff;
